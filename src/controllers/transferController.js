@@ -1,7 +1,7 @@
 // controllers/transferController.js
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
-const { flutterwaveService } = require('../services/paymentService');
+const mockBankService = require('../services/mockBankService');
 const { exchangeRateService } = require('../services/exchangeRateService');
 const { sendEmail } = require('../services/emailService');
 const { sendSMS } = require('../services/smsService');
@@ -12,11 +12,13 @@ class TransferController {
         try {
             const { countryCode } = req.params;
 
-            const banks = await flutterwaveService.getBanks(countryCode);
+            const banks = mockBankService.getBanks(countryCode);
+            const countryInfo = mockBankService.getCountryInfo(countryCode);
 
             res.json({
                 status: 'success',
                 data: {
+                    country: countryInfo,
                     banks
                 }
             });
@@ -25,7 +27,29 @@ class TransferController {
             console.error('Get banks error:', error);
             res.status(500).json({
                 status: 'error',
-                message: 'Failed to fetch banks'
+                message: error.message || 'Failed to fetch banks'
+            });
+        }
+    }
+
+    // @desc    Get all supported countries
+    async getSupportedCountries(req, res) {
+        try {
+            const countries = mockBankService.getSupportedCountries();
+
+            res.json({
+                status: 'success',
+                data: {
+                    countries,
+                    total: countries.length
+                }
+            });
+
+        } catch (error) {
+            console.error('Get supported countries error:', error);
+            res.status(500).json({
+                status: 'error',
+                message: 'Failed to fetch supported countries'
             });
         }
     }
@@ -33,7 +57,7 @@ class TransferController {
     // @desc    Verify bank account details
     async verifyAccount(req, res) {
         try {
-            const { accountNumber, bankCode } = req.body;
+            const { accountNumber, bankCode, countryCode = 'NG' } = req.body;
 
             if (!accountNumber || !bankCode) {
                 return res.status(400).json({
@@ -42,10 +66,19 @@ class TransferController {
                 });
             }
 
-            const accountDetails = await flutterwaveService.verifyBankAccount(accountNumber, bankCode);
+            // Validate account number format
+            if (!mockBankService.validateAccountNumber(accountNumber, countryCode)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid account number format for this country'
+                });
+            }
+
+            const accountDetails = await mockBankService.verifyBankAccount(accountNumber, bankCode, countryCode);
 
             res.json({
                 status: 'success',
+                message: 'Account verified successfully',
                 data: {
                     accountDetails
                 }
@@ -55,7 +88,7 @@ class TransferController {
             console.error('Account verification error:', error);
             res.status(500).json({
                 status: 'error',
-                message: 'Failed to verify account details'
+                message: error.message || 'Failed to verify account details'
             });
         }
     }
@@ -102,12 +135,11 @@ class TransferController {
                 });
             }
 
-            // Check wallet balance
-            const totalAmount = amount; // Will calculate fees later
-            if (sender.walletBalance < totalAmount) {
+            // Validate account number format
+            if (!mockBankService.validateAccountNumber(accountNumber, recipientCountry)) {
                 return res.status(400).json({
                     status: 'error',
-                    message: 'Insufficient wallet balance'
+                    message: 'Invalid account number format for destination country'
                 });
             }
 
@@ -188,7 +220,7 @@ class TransferController {
             sender.walletBalance -= transaction.totalAmount;
             await sender.save();
 
-            // Process transfer with Flutterwave
+            // Simulate transfer processing
             try {
                 const transferData = {
                     account_bank: bankCode,
@@ -197,20 +229,21 @@ class TransferController {
                     currency,
                     beneficiary_name: recipientName,
                     reference: transaction.reference,
-                    narration: description || `Transfer from ${sender.fullName}`
+                    narration: description || `Transfer from ${sender.fullName}`,
+                    country_code: recipientCountry
                 };
 
-                const flwResponse = await flutterwaveService.transfer(transferData);
+                const simulatedResponse = await mockBankService.simulateTransfer(transferData);
 
-                // Update transaction with provider details
+                // Update transaction with simulated response
                 transaction.provider = {
-                    name: 'flutterwave',
-                    transactionId: flwResponse.id,
-                    reference: flwResponse.reference,
-                    response: flwResponse
+                    name: 'esend_mock_service',
+                    transactionId: simulatedResponse.id,
+                    reference: simulatedResponse.reference,
+                    response: simulatedResponse
                 };
 
-                await transaction.addTimeline('processing', 'Transfer initiated with Flutterwave');
+                await transaction.addTimeline('completed', 'Transfer completed successfully (simulated)');
 
                 // Send notifications
                 if (recipientEmail) {
@@ -223,7 +256,8 @@ class TransferController {
                             senderName: sender.fullName,
                             amount,
                             currency,
-                            transactionId: transaction.transactionId
+                            transactionId: transaction.transactionId,
+                            bankName: mockBankService.getBankName(bankCode, recipientCountry)
                         }
                     });
                 }
@@ -231,13 +265,13 @@ class TransferController {
                 if (recipientPhone) {
                     await sendSMS({
                         to: recipientPhone,
-                        message: `You have received ${amount} ${currency} from ${sender.fullName}. Transaction ID: ${transaction.transactionId}`
+                        message: `You have received ${amount} ${currency} from ${sender.fullName} to your ${mockBankService.getBankName(bankCode, recipientCountry)} account. Transaction ID: ${transaction.transactionId}`
                     });
                 }
 
                 res.status(201).json({
                     status: 'success',
-                    message: 'Transfer initiated successfully',
+                    message: 'Transfer completed successfully',
                     data: {
                         transaction: {
                             id: transaction.transactionId,
@@ -248,21 +282,26 @@ class TransferController {
                             totalAmount: transaction.totalAmount,
                             status: transaction.status,
                             recipient: transaction.recipient,
+                            bankName: mockBankService.getBankName(bankCode, recipientCountry),
+                            estimatedArrival: 'Instant (simulated)',
                             createdAt: transaction.createdAt
                         }
                     }
                 });
 
-            } catch (providerError) {
-                // Refund wallet if provider fails
+            } catch (simulationError) {
+                // Refund wallet if simulation fails
                 sender.walletBalance += transaction.totalAmount;
                 await sender.save();
 
-                await transaction.addTimeline('failed', 'Transfer failed at provider level', {
-                    error: providerError.message
+                await transaction.addTimeline('failed', 'Transfer simulation failed', {
+                    error: simulationError.message
                 });
 
-                throw providerError;
+                return res.status(500).json({
+                    status: 'error',
+                    message: simulationError.message || 'Transfer failed. Please try again.'
+                });
             }
 
         } catch (error) {
@@ -274,7 +313,7 @@ class TransferController {
         }
     }
 
-    // @desc    Transfer money between WestCash users
+    // @desc    Transfer money between WestCash users (unchanged)
     async westcashTransfer(req, res) {
         try {
             const senderId = req.user.userId;
@@ -328,7 +367,7 @@ class TransferController {
 
             // Create transaction
             const transaction = new Transaction({
-                type: 'westcash_transfer',
+                type: 'esend_transfer',
                 sender: {
                     userId: sender._id,
                     name: sender.fullName,
@@ -381,13 +420,13 @@ class TransferController {
             await sender.save();
             await recipient.save();
 
-            await transaction.addTimeline('completed', 'WestCash transfer completed successfully');
+            await transaction.addTimeline('completed', 'Esend transfer completed successfully');
 
             // Send notifications
             await sendEmail({
                 to: recipient.email,
-                subject: 'Money Received - WestCash Global',
-                template: 'westcash_received',
+                subject: 'Money Received - Esend Global',
+                template: 'esend_received',
                 data: {
                     recipientName: recipient.firstName,
                     senderName: sender.fullName,
@@ -424,7 +463,7 @@ class TransferController {
             });
 
         } catch (error) {
-            console.error('WestCash transfer error:', error);
+            console.error('Esend transfer error:', error);
             res.status(500).json({
                 status: 'error',
                 message: 'Transfer failed. Please try again.'
@@ -468,6 +507,15 @@ class TransferController {
                 return res.status(400).json({
                     status: 'error',
                     message: `Transaction amount exceeds your single transaction limit of ${sender.limits.singleTransaction}`
+                });
+            }
+
+            // Validate mobile money provider
+            const supportedProviders = mockBankService.getMobileMoneyProviders(recipientCountry);
+            if (!supportedProviders.includes(provider)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: `Provider ${provider} not supported in ${recipientCountry}`
                 });
             }
 
@@ -521,7 +569,7 @@ class TransferController {
             sender.walletBalance -= transaction.totalAmount;
             await sender.save();
 
-            // Process transfer with Flutterwave
+            // Simulate mobile money transfer
             try {
                 const transferData = {
                     account_bank: provider,
@@ -533,16 +581,16 @@ class TransferController {
                     narration: description || `Mobile money transfer from ${sender.fullName}`
                 };
 
-                const flwResponse = await flutterwaveService.transferMobileMoney(transferData);
+                const simulatedResponse = await mockBankService.simulateMobileMoneyTransfer(transferData);
 
                 transaction.provider = {
-                    name: 'flutterwave',
-                    transactionId: flwResponse.id,
-                    reference: flwResponse.reference,
-                    response: flwResponse
+                    name: 'esend_mock_mobile_service',
+                    transactionId: simulatedResponse.id,
+                    reference: simulatedResponse.reference,
+                    response: simulatedResponse
                 };
 
-                await transaction.addTimeline('processing', 'Mobile money transfer initiated');
+                await transaction.addTimeline('completed', 'Mobile money transfer completed successfully (simulated)');
 
                 // Send notification SMS
                 await sendSMS({
@@ -552,7 +600,7 @@ class TransferController {
 
                 res.status(201).json({
                     status: 'success',
-                    message: 'Mobile money transfer initiated successfully',
+                    message: 'Mobile money transfer completed successfully',
                     data: {
                         transaction: {
                             id: transaction.transactionId,
@@ -563,21 +611,26 @@ class TransferController {
                             totalAmount: transaction.totalAmount,
                             status: transaction.status,
                             recipient: transaction.recipient,
+                            provider: provider,
+                            estimatedArrival: 'Instant (simulated)',
                             createdAt: transaction.createdAt
                         }
                     }
                 });
 
-            } catch (providerError) {
-                // Refund wallet if provider fails
+            } catch (simulationError) {
+                // Refund wallet if simulation fails
                 sender.walletBalance += transaction.totalAmount;
                 await sender.save();
 
-                await transaction.addTimeline('failed', 'Mobile money transfer failed', {
-                    error: providerError.message
+                await transaction.addTimeline('failed', 'Mobile money transfer simulation failed', {
+                    error: simulationError.message
                 });
 
-                throw providerError;
+                return res.status(500).json({
+                    status: 'error',
+                    message: simulationError.message || 'Transfer failed. Please try again.'
+                });
             }
 
         } catch (error) {
@@ -592,7 +645,7 @@ class TransferController {
     // @desc    Get transfer quote with fees and exchange rates
     async getQuote(req, res) {
         try {
-            const { amount, fromCurrency, toCurrency, transferType } = req.query;
+            const { amount, fromCurrency, toCurrency, transferType, countryCode } = req.query;
 
             if (!amount || !fromCurrency || !transferType) {
                 return res.status(400).json({
@@ -629,20 +682,14 @@ class TransferController {
 
             switch (transferType) {
                 case 'bank_transfer':
-                    if (numAmount <= 1000) {
-                        fees.transactionFee = 10;
-                    } else if (numAmount <= 10000) {
-                        fees.transactionFee = 25;
-                    } else {
-                        fees.transactionFee = Math.min(numAmount * 0.015, 500);
-                    }
+                    fees.transactionFee = mockBankService.calculateTransferFee(numAmount);
                     break;
 
                 case 'mobile_money':
-                    fees.transactionFee = Math.min(numAmount * 0.02, 300);
+                    fees.transactionFee = mockBankService.calculateMobileMoneyFee(numAmount);
                     break;
 
-                case 'westcash_transfer':
+                case 'esend_transfer':
                     fees.transactionFee = numAmount <= 10000 ? 0 : numAmount * 0.005;
                     break;
             }
@@ -652,8 +699,17 @@ class TransferController {
             }
 
             fees.totalFees = fees.transactionFee + fees.exchangeFee + fees.processingFee;
-
             const totalAmount = numAmount + fees.totalFees;
+
+            // Get destination country info if provided
+            let destinationInfo = null;
+            if (countryCode) {
+                try {
+                    destinationInfo = mockBankService.getCountryInfo(countryCode);
+                } catch (error) {
+                    // Country not supported, but don't fail the quote
+                }
+            }
 
             res.json({
                 status: 'success',
@@ -667,6 +723,8 @@ class TransferController {
                         fees,
                         totalAmount,
                         transferType,
+                        destinationCountry: destinationInfo,
+                        estimatedArrival: transferType === 'esend_transfer' ? 'Instant' : 'Instant (simulated)',
                         timestamp: new Date().toISOString()
                     }
                 }
@@ -718,6 +776,34 @@ class TransferController {
             res.status(500).json({
                 status: 'error',
                 message: 'Failed to fetch recipients'
+            });
+        }
+    }
+
+    // @desc    Get mobile money providers for a country
+    async getMobileMoneyProviders(req, res) {
+        try {
+            const { countryCode } = req.params;
+
+            const providers = mockBankService.getMobileMoneyProviders(countryCode);
+            const countryInfo = mockBankService.getCountryInfo(countryCode);
+
+            res.json({
+                status: 'success',
+                data: {
+                    country: countryInfo,
+                    providers: providers.map(provider => ({
+                        name: provider,
+                        code: provider.toLowerCase().replace(/\s+/g, '_')
+                    }))
+                }
+            });
+
+        } catch (error) {
+            console.error('Get mobile money providers error:', error);
+            res.status(500).json({
+                status: 'error',
+                message: error.message || 'Failed to fetch mobile money providers'
             });
         }
     }

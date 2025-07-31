@@ -101,7 +101,7 @@ class UserController {
 
             // Upload to Cloudinary
             const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-                folder: `westcash/kyc/${userId}`,
+                folder: `esend/kyc/${userId}`,
                 resource_type: 'image',
                 transformation: [
                     { quality: 'auto' },

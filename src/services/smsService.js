@@ -4,7 +4,7 @@ const axios = require('axios');
 class SMSService {
     constructor() {
         this.apiKey = process.env.TERMII_API_KEY;
-        this.senderId = process.env.TERMII_SENDER_ID || 'WestCash';
+        this.senderId = process.env.TERMII_SENDER_ID || 'Esend';
         this.baseURL = process.env.TERMII_BASE_URL || 'https://api.ng.termii.com';
 
         this.client = axios.create({
@@ -49,7 +49,7 @@ class SMSService {
                 pin_time_to_live: 5,
                 pin_length: 6,
                 pin_placeholder: '< 1234 >',
-                message_text: `Your WestCash verification code is < 1234 >. Valid for 5 minutes.`,
+                message_text: `Your Esend verification code is < 1234 >. Valid for 5 minutes.`,
                 pin_type: 'NUMERIC'
             };
 

@@ -21,6 +21,7 @@ const transactionSchema = new mongoose.Schema({
             'wallet_deposit',
             'wallet_withdrawal',
             'westcash_transfer',
+            'esend_transfer',
             'bank_transfer',
             'mobile_money',
             'card_payment',
@@ -297,7 +298,7 @@ transactionSchema.pre('save', function(next) {
 
     if (!this.reference) {
         const { v4: uuidv4 } = require('uuid');
-        this.reference = `westcash_${uuidv4()}`;
+        this.reference = `esend_${uuidv4()}`;
     }
 
     // Set expiry if not set (default 24 hours for pending transactions)

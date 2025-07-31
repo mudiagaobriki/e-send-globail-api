@@ -60,9 +60,9 @@ class EmailService {
             welcome: {
                 HTMLPart: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2c5aa0;">Welcome to WestCash Global!</h2>
+            <h2 style="color: #2c5aa0;">Welcome to Esend Global!</h2>
             <p>Hello ${data.firstName},</p>
-            <p>Thank you for joining WestCash Global. Your account has been created successfully.</p>
+            <p>Thank you for joining Esend Global. Your account has been created successfully.</p>
             <p>To get started, please verify your email address by clicking the button below:</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${data.verificationUrl}" 
@@ -71,10 +71,10 @@ class EmailService {
               </a>
             </div>
             <p>If you have any questions, feel free to contact our support team.</p>
-            <p>Best regards,<br>The WestCash Global Team</p>
+            <p>Best regards,<br>The Esend Global Team</p>
           </div>
         `,
-                TextPart: `Welcome to WestCash Global! Hello ${data.firstName}, thank you for joining us. Please verify your email: ${data.verificationUrl}`
+                TextPart: `Welcome to Esend Global! Hello ${data.firstName}, thank you for joining us. Please verify your email: ${data.verificationUrl}`
             },
 
             transfer_notification: {
@@ -89,7 +89,7 @@ class EmailService {
               <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
             </div>
             <p>The money will be credited to your account within 1-3 business days.</p>
-            <p>Best regards,<br>The WestCash Global Team</p>
+            <p>Best regards,<br>The Esend Global Team</p>
           </div>
         `,
                 TextPart: `You received ${data.amount} ${data.currency} from ${data.senderName}. Transaction ID: ${data.transactionId}`
@@ -100,17 +100,17 @@ class EmailService {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2c5aa0;">Money Received!</h2>
             <p>Hello ${data.recipientName},</p>
-            <p>Great news! You've received money in your WestCash wallet:</p>
+            <p>Great news! You've received money in your Esend wallet:</p>
             <div style="background-color: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0;">
               <p><strong>Amount:</strong> ${data.amount} ${data.currency}</p>
               <p><strong>From:</strong> ${data.senderName}</p>
               <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
             </div>
             <p>The money is now available in your wallet and ready to use!</p>
-            <p>Best regards,<br>The WestCash Global Team</p>
+            <p>Best regards,<br>The Esend Global Team</p>
           </div>
         `,
-                TextPart: `You received ${data.amount} ${data.currency} from ${data.senderName} in your WestCash wallet. Transaction ID: ${data.transactionId}`
+                TextPart: `You received ${data.amount} ${data.currency} from ${data.senderName} in your Esend wallet. Transaction ID: ${data.transactionId}`
             },
 
             password_reset: {
@@ -126,7 +126,7 @@ class EmailService {
               </a>
             </div>
             <p>This link will expire in 1 hour. If you didn't request this, please ignore this email.</p>
-            <p>Best regards,<br>The WestCash Global Team</p>
+            <p>Best regards,<br>The Esend Global Team</p>
           </div>
         `,
                 TextPart: `Password reset requested. Use this link: ${data.resetUrl}`

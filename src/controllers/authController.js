@@ -18,7 +18,7 @@ class AuthController {
     }
 
     // @desc    Register a new user
-    async register(req, res) {
+    register = async (req, res) => {
         try {
             const {
                 firstName,
@@ -80,7 +80,7 @@ class AuthController {
             // Send welcome email
             await sendEmail({
                 to: email,
-                subject: 'Welcome to WestCash Global',
+                subject: 'Welcome to Esend Global',
                 template: 'welcome',
                 data: {
                     firstName,
@@ -91,7 +91,7 @@ class AuthController {
             // Send phone verification SMS
             await sendSMS({
                 to: phoneNumber,
-                message: `Your WestCash verification code is: ${phoneOTP}. Valid for 5 minutes.`
+                message: `Your Esend verification code is: ${phoneOTP}. Valid for 5 minutes.`
             });
 
             // Generate token
@@ -125,7 +125,7 @@ class AuthController {
     }
 
     // @desc    Login user
-    async login(req, res) {
+    login = async(req, res) => {
         try {
             const { email, password } = req.body;
 
@@ -293,7 +293,7 @@ class AuthController {
             // Send SMS
             await sendSMS({
                 to: user.phoneNumber,
-                message: `Your WestCash verification code is: ${phoneOTP}. Valid for 5 minutes.`
+                message: `Your Esend verification code is: ${phoneOTP}. Valid for 5 minutes.`
             });
 
             res.json({
@@ -338,7 +338,7 @@ class AuthController {
             // Send password reset email
             await sendEmail({
                 to: email,
-                subject: 'Password Reset - WestCash Global',
+                subject: 'Password Reset - Esend Global',
                 template: 'password_reset',
                 data: {
                     firstName: user.firstName,

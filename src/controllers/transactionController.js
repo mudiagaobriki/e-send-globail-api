@@ -62,6 +62,7 @@ class TransactionController {
     async getTransactionById(req, res) {
         try {
             const { id } = req.params;
+            // console.log(req.body);
             const userId = req.user.userId;
 
             const transaction = await Transaction.findOne({

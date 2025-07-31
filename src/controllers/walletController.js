@@ -49,12 +49,12 @@ class WalletController {
             }
 
             // Check if user is verified
-            if (!user.isPhoneVerified) {
-                return res.status(403).json({
-                    status: 'error',
-                    message: 'Please verify your phone number first'
-                });
-            }
+            // if (!user.isPhoneVerified) {
+            //     return res.status(403).json({
+            //         status: 'error',
+            //         message: 'Please verify your phone number first'
+            //     });
+            // }
 
             // Create transaction record
             const transaction = new Transaction({
@@ -109,7 +109,7 @@ class WalletController {
                         name: user.fullName
                     },
                     customizations: {
-                        title: 'WestCash Wallet Deposit',
+                        title: 'Esend Wallet Deposit',
                         description: `Deposit ${amount} ${currency} to wallet`,
                         logo: 'https://your-logo-url.com/logo.png'
                     },

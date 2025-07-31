@@ -45,10 +45,11 @@ const limiter = rateLimit({
 app.use(Sentry.Handlers.requestHandler());
 app.use(helmet());
 app.use(compression());
-app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-    credentials: true
-}));
+// app.use(cors({
+//     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+//     credentials: true
+// }));
+app.use(cors())
 app.use(limiter);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
@@ -58,7 +59,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'success',
-        message: 'WestCash Global API is running',
+        message: 'Esend Global API is running',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV
     });
@@ -67,7 +68,7 @@ app.get('/health', (req, res) => {
 // API documentation
 app.get('/', (req, res) => {
     res.json({
-        message: 'Welcome to WestCash Global API',
+        message: 'Welcome to Esend Global API',
         version: '1.0.0',
         documentation: '/api/docs',
         endpoints: {
@@ -109,6 +110,7 @@ app.use('*', (req, res) => {
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    dbName: process.env.DB_NAME,
 })
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => {
@@ -119,7 +121,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`WestCash Global API running on port ${PORT}`);
+    console.log(`Esend Global API running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
 });
 
